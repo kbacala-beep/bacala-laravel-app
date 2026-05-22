@@ -22,8 +22,7 @@
     <form method="GET" action="{{ route('reports.index') }}" id="filter-form">
         <div class="d-flex flex-wrap gap-2 mb-4 align-items-end">
 
-            {{-- Search --}}
-            <div style="position:relative; flex: 1; min-width: 200px;">
+            <div style="position:relative; flex:1; min-width:200px;">
                 <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.8rem; pointer-events:none;">
                     <i class="fa fa-search"></i>
                 </span>
@@ -36,7 +35,6 @@
                        onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='none';">
             </div>
 
-            {{-- Status --}}
             <select name="status"
                     style="background:var(--surface-03); border:1px solid var(--border); border-radius:8px;
                            padding:9px 32px 9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none;
@@ -49,7 +47,6 @@
                 <option value="Resolved"    {{ request('status') === 'Resolved'    ? 'selected' : '' }}>Resolved</option>
             </select>
 
-            {{-- Category --}}
             <select name="category_id"
                     style="background:var(--surface-03); border:1px solid var(--border); border-radius:8px;
                            padding:9px 32px 9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none;
@@ -80,7 +77,6 @@
             @endif
         </div>
 
-        {{-- Active filter summary --}}
         @if(request()->hasAny(['search', 'status', 'category_id']))
             <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
                 <span style="font-size:0.78rem; color:var(--text-muted);">Filtering by:</span>
@@ -102,14 +98,36 @@
                         </span>
                     @endif
                 @endif
+                <span style="font-size:0.78rem; color:var(--text-muted);">
+                    — {{ isset($reports) ? $reports->total() : ($myReports->total() + $otherReports->total()) }} result(s)
+                </span>
             </div>
         @endif
     </form>
 
+    @php
+        /* Reusable macro for category badge */
+        $categoryBadge = function($report) {
+            if (!$report->category) return '<span style="color:var(--text-muted); font-size:0.82rem;">—</span>';
+            $c = $report->category;
+            return '<span style="display:inline-flex; align-items:center; gap:5px; background:' . $c->color . '1a;
+                        border:1px solid ' . $c->color . '4d; border-radius:20px;
+                        padding:3px 10px; font-size:0.78rem; color:' . $c->color . '; white-space:nowrap;">
+                        <i class=\"fa ' . $c->icon . '\" style=\"font-size:0.7rem;\"></i> ' . e($c->name) . '
+                    </span>';
+        };
+        $attachSummary = function($report) {
+            $photos    = $report->attachments->filter(fn($a) => str_starts_with($a->file_type, 'image'))->count();
+            $documents = $report->attachments->filter(fn($a) => $a->file_type === 'application/pdf')->count();
+            $parts = [];
+            if ($photos > 0)    $parts[] = $photos    . ' ' . ($photos    === 1 ? 'photo'    : 'photos');
+            if ($documents > 0) $parts[] = $documents . ' ' . ($documents === 1 ? 'document' : 'documents');
+            return count($parts) ? implode(' · ', $parts) : null;
+        };
+    @endphp
+
     @if($isAdmin)
-    {{-- ══════════════════════════════════════════════════════════ --}}
-    {{-- ADMIN: Single flat table (original behaviour)             --}}
-    {{-- ══════════════════════════════════════════════════════════ --}}
+    {{-- ══ ADMIN: flat table ══════════════════════════════════════ --}}
     <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle rounded overflow-hidden" id="reports-table">
             <thead>
@@ -122,39 +140,23 @@
                     <th>Submitted By</th>
                     <th>Attachments</th>
                     <th>Submitted</th>
-                    <th class="col-2">Actions</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($reports as $index => $report)
-                    @php
-                        $photos    = $report->attachments->filter(fn($a) => str_starts_with($a->file_type, 'image'))->count();
-                        $documents = $report->attachments->filter(fn($a) => $a->file_type === 'application/pdf')->count();
-                        $parts = [];
-                        if ($photos > 0)    $parts[] = $photos    . ' ' . ($photos    === 1 ? 'photo'    : 'photos');
-                        if ($documents > 0) $parts[] = $documents . ' ' . ($documents === 1 ? 'document' : 'documents');
-                        $attachmentSummary = count($parts) ? implode(' · ', $parts) : null;
-                    @endphp
-                    <tr id="report-row-{{ $report->id }}" data-id="{{ $report->id }}">
-                        <td>{{ ($reports->currentPage() - 1) * $reports->perPage() + $index + 1 }}</td>
+                    <tr id="report-row-{{ $report->id }}"
+                        data-id="{{ $report->id }}"
+                        data-resident="{{ $report->resident_name }}">
+                        <td>{{ ($reports->currentPage()-1)*$reports->perPage()+$index+1 }}</td>
                         <td><strong>{{ $report->resident_name }}</strong></td>
-                        <td>
-                            @if($report->category)
-                                <span style="display:inline-flex; align-items:center; gap:5px; background:{{ $report->category->color }}1a;
-                                             border:1px solid {{ $report->category->color }}4d; border-radius:20px;
-                                             padding:3px 10px; font-size:0.78rem; color:{{ $report->category->color }}; white-space:nowrap;">
-                                    <i class="fa {{ $report->category->icon }}" style="font-size:0.7rem;"></i>
-                                    {{ $report->category->name }}
-                                </span>
-                            @else
-                                <span style="color:var(--text-muted); font-size:0.82rem;">—</span>
-                            @endif
-                        </td>
+                        <td>{!! $categoryBadge($report) !!}</td>
                         <td>{{ $report->subject }}</td>
                         <td>
                             <select class="status-select form-select form-select-sm"
                                     data-id="{{ $report->id }}"
                                     data-url="{{ route('reports.update', $report->id) }}"
+                                    data-original="{{ $report->status }}"
                                     style="width:auto; min-width:130px; font-size:0.8rem;">
                                 <option value="Pending"     {{ $report->status === 'Pending'     ? 'selected' : '' }}>Pending</option>
                                 <option value="In Progress" {{ $report->status === 'In Progress' ? 'selected' : '' }}>In Progress</option>
@@ -168,10 +170,9 @@
                             </small>
                         </td>
                         <td>
-                            @if($attachmentSummary)
-                                <span style="color:var(--primary-hover); font-size:0.85rem;">
-                                    <i class="fa fa-paperclip me-1"></i>{{ $attachmentSummary }}
-                                </span>
+                            @php $summary = $attachSummary($report); @endphp
+                            @if($summary)
+                                <span style="color:var(--primary-hover); font-size:0.85rem;"><i class="fa fa-paperclip me-1"></i>{{ $summary }}</span>
                             @else
                                 <span class="text-muted" style="font-size:0.85rem;">None</span>
                             @endif
@@ -202,11 +203,9 @@
     <div class="mt-3">{{ $reports->links() }}</div>
 
     @else
-    {{-- ══════════════════════════════════════════════════════════ --}}
-    {{-- RESIDENT: Pinned "My Reports" + "Other Reports" below     --}}
-    {{-- ══════════════════════════════════════════════════════════ --}}
+    {{-- ══ RESIDENT: My Reports + Other Reports ═══════════════════ --}}
 
-    {{-- ── My Reports (pinned) ─────────────────────────────────── --}}
+    {{-- My Reports --}}
     <div class="mb-4">
         <div class="d-flex align-items-center gap-2 mb-2">
             <span style="width:4px; height:18px; background:var(--primary); border-radius:2px; flex-shrink:0; display:inline-block;"></span>
@@ -215,46 +214,22 @@
                 {{ $myReports->total() }} {{ Str::plural('report', $myReports->total()) }}
             </span>
         </div>
-
         <div class="table-responsive">
-            <table class="table table-bordered table-hover align-middle" id="my-reports-table" style="border-color: rgba(198,40,40,0.2);">
-                <thead style="background: rgba(198,40,40,0.08);">
+            <table class="table table-bordered table-hover align-middle" id="my-reports-table" style="border-color:rgba(198,40,40,0.2);">
+                <thead style="background:rgba(198,40,40,0.08);">
                     <tr>
-                        <th>#</th>
-                        <th>Resident</th>
-                        <th>Category</th>
-                        <th>Subject</th>
-                        <th>Status</th>
-                        <th>Attachments</th>
-                        <th>Submitted</th>
-                        <th>Actions</th>
+                        <th>#</th><th>Resident</th><th>Category</th><th>Subject</th>
+                        <th>Status</th><th>Attachments</th><th>Submitted</th><th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($myReports as $index => $report)
-                        @php
-                            $photos    = $report->attachments->filter(fn($a) => str_starts_with($a->file_type, 'image'))->count();
-                            $documents = $report->attachments->filter(fn($a) => $a->file_type === 'application/pdf')->count();
-                            $parts = [];
-                            if ($photos > 0)    $parts[] = $photos    . ' ' . ($photos    === 1 ? 'photo'    : 'photos');
-                            if ($documents > 0) $parts[] = $documents . ' ' . ($documents === 1 ? 'document' : 'documents');
-                            $attachmentSummary = count($parts) ? implode(' · ', $parts) : null;
-                        @endphp
-                        <tr id="report-row-{{ $report->id }}" data-id="{{ $report->id }}">
-                            <td>{{ ($myReports->currentPage() - 1) * $myReports->perPage() + $index + 1 }}</td>
+                        <tr id="report-row-{{ $report->id }}"
+                            data-id="{{ $report->id }}"
+                            data-resident="{{ $report->resident_name }}">
+                            <td>{{ ($myReports->currentPage()-1)*$myReports->perPage()+$index+1 }}</td>
                             <td><strong>{{ $report->resident_name }}</strong></td>
-                            <td>
-                                @if($report->category)
-                                    <span style="display:inline-flex; align-items:center; gap:5px; background:{{ $report->category->color }}1a;
-                                                 border:1px solid {{ $report->category->color }}4d; border-radius:20px;
-                                                 padding:3px 10px; font-size:0.78rem; color:{{ $report->category->color }}; white-space:nowrap;">
-                                        <i class="fa {{ $report->category->icon }}" style="font-size:0.7rem;"></i>
-                                        {{ $report->category->name }}
-                                    </span>
-                                @else
-                                    <span style="color:var(--text-muted); font-size:0.82rem;">—</span>
-                                @endif
-                            </td>
+                            <td>{!! $categoryBadge($report) !!}</td>
                             <td>{{ $report->subject }}</td>
                             <td>
                                 <span class="badge
@@ -265,10 +240,9 @@
                                 </span>
                             </td>
                             <td>
-                                @if($attachmentSummary)
-                                    <span style="color:var(--primary-hover); font-size:0.85rem;">
-                                        <i class="fa fa-paperclip me-1"></i>{{ $attachmentSummary }}
-                                    </span>
+                                @php $summary = $attachSummary($report); @endphp
+                                @if($summary)
+                                    <span style="color:var(--primary-hover); font-size:0.85rem;"><i class="fa fa-paperclip me-1"></i>{{ $summary }}</span>
                                 @else
                                     <span class="text-muted" style="font-size:0.85rem;">None</span>
                                 @endif
@@ -304,7 +278,7 @@
         @endif
     </div>
 
-    {{-- ── Other Reports ────────────────────────────────────────── --}}
+    {{-- Other Reports --}}
     <div>
         <div class="d-flex align-items-center gap-2 mb-2">
             <span style="width:4px; height:18px; background:var(--surface-04); border-radius:2px; flex-shrink:0; display:inline-block;"></span>
@@ -313,47 +287,20 @@
                 {{ $otherReports->total() }} {{ Str::plural('report', $otherReports->total()) }}
             </span>
         </div>
-
         <div class="table-responsive">
             <table class="table table-bordered table-hover align-middle" id="other-reports-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Resident</th>
-                        <th>Category</th>
-                        <th>Subject</th>
-                        <th>Status</th>
-                        <th>Submitted By</th>
-                        <th>Attachments</th>
-                        <th>Submitted</th>
-                        <th>Actions</th>
+                        <th>#</th><th>Resident</th><th>Category</th><th>Subject</th>
+                        <th>Status</th><th>Submitted By</th><th>Attachments</th><th>Submitted</th><th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($otherReports as $index => $report)
-                        @php
-                            $photos    = $report->attachments->filter(fn($a) => str_starts_with($a->file_type, 'image'))->count();
-                            $documents = $report->attachments->filter(fn($a) => $a->file_type === 'application/pdf')->count();
-                            $parts = [];
-                            if ($photos > 0)    $parts[] = $photos    . ' ' . ($photos    === 1 ? 'photo'    : 'photos');
-                            if ($documents > 0) $parts[] = $documents . ' ' . ($documents === 1 ? 'document' : 'documents');
-                            $attachmentSummary = count($parts) ? implode(' · ', $parts) : null;
-                        @endphp
-                        <tr id="report-row-{{ $report->id }}" data-id="{{ $report->id }}">
-                            <td>{{ ($otherReports->currentPage() - 1) * $otherReports->perPage() + $index + 1 }}</td>
+                        <tr id="report-row-other-{{ $report->id }}" data-id="{{ $report->id }}">
+                            <td>{{ ($otherReports->currentPage()-1)*$otherReports->perPage()+$index+1 }}</td>
                             <td><strong>{{ $report->resident_name }}</strong></td>
-                            <td>
-                                @if($report->category)
-                                    <span style="display:inline-flex; align-items:center; gap:5px; background:{{ $report->category->color }}1a;
-                                                 border:1px solid {{ $report->category->color }}4d; border-radius:20px;
-                                                 padding:3px 10px; font-size:0.78rem; color:{{ $report->category->color }}; white-space:nowrap;">
-                                        <i class="fa {{ $report->category->icon }}" style="font-size:0.7rem;"></i>
-                                        {{ $report->category->name }}
-                                    </span>
-                                @else
-                                    <span style="color:var(--text-muted); font-size:0.82rem;">—</span>
-                                @endif
-                            </td>
+                            <td>{!! $categoryBadge($report) !!}</td>
                             <td>{{ $report->subject }}</td>
                             <td>
                                 <span class="badge
@@ -370,10 +317,9 @@
                                 </small>
                             </td>
                             <td>
-                                @if($attachmentSummary)
-                                    <span style="color:var(--primary-hover); font-size:0.85rem;">
-                                        <i class="fa fa-paperclip me-1"></i>{{ $attachmentSummary }}
-                                    </span>
+                                @php $summary = $attachSummary($report); @endphp
+                                @if($summary)
+                                    <span style="color:var(--primary-hover); font-size:0.85rem;"><i class="fa fa-paperclip me-1"></i>{{ $summary }}</span>
                                 @else
                                     <span class="text-muted" style="font-size:0.85rem;">None</span>
                                 @endif
@@ -400,74 +346,7 @@
             <div class="mt-2">{{ $otherReports->appends(request()->query())->links() }}</div>
         @endif
     </div>
-    @endif {{-- end resident view --}}
+    @endif
 
 </div>
 @endsection
-
-@push('scripts')
-<script>
-(function($) {
-    "use strict";
-
-    // ── Inline status update (admin only) ────────────────────────
-    $(document).on('change', '.status-select', function () {
-        const $select  = $(this);
-        const url      = $select.data('url');
-        const status   = $select.val();
-        const original = $select.data('original') || $select.find('option[selected]').val() || $select.val();
-
-        $select.prop('disabled', true);
-
-        $.ajax({
-            url: url, method: 'PUT',
-            data: {
-                status: status,
-                resident_name: $select.closest('tr').find('td:nth-child(2) strong').text(),
-                _method: 'PUT',
-            },
-            success: function (res) {
-                showToast(res.message, 'success');
-                $select.data('original', status);
-            },
-            error: function () { $select.val(original); },
-            complete: function () { $select.prop('disabled', false); }
-        });
-    });
-
-    // ── AJAX archive (admin) ──────────────────────────────────────
-    $(document).on('click', '.ajax-archive', function () {
-        const $btn = $(this);
-        if (!confirm('Archive this report?')) return;
-        $btn.prop('disabled', true);
-        $.ajax({
-            url: $btn.data('url'), method: 'DELETE',
-            success: function (res) { removeRow($btn.data('id'), res.message, 9); },
-            error:   function ()    { $btn.prop('disabled', false); }
-        });
-    });
-
-    // ── AJAX delete (resident, own reports) ──────────────────────
-    $(document).on('click', '.ajax-delete', function () {
-        const $btn = $(this);
-        if (!confirm('Are you sure you want to delete this report?')) return;
-        $btn.prop('disabled', true);
-        $.ajax({
-            url: $btn.data('url'), method: 'DELETE',
-            success: function (res) { removeRow($btn.data('id'), res.message, 8); },
-            error:   function ()    { $btn.prop('disabled', false); }
-        });
-    });
-
-    function removeRow(id, message, cols) {
-        const $row = $('#report-row-' + id);
-        $row.css({ transition: 'opacity 0.3s ease, transform 0.3s ease', opacity: 0, transform: 'translateX(20px)' });
-        setTimeout(function () {
-            $row.remove();
-            showToast(message, 'success');
-        }, 320);
-    }
-
-})(jQuery);
-</script>
-@endpush

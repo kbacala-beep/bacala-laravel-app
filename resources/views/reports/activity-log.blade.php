@@ -17,16 +17,15 @@
         </a>
     </div>
 
-    {{-- ── Filters ───────────────────────────────────────────────── --}}
+    {{-- Filters --}}
     <form method="GET" action="{{ route('reports.activityLog') }}">
         <div class="d-flex flex-wrap gap-2 mb-4 align-items-end">
 
-            {{-- Action type --}}
             <select name="action"
                     style="background:var(--surface-03); border:1px solid var(--border); border-radius:8px;
                            padding:9px 32px 9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none;
                            appearance:none; background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236E6E73' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\");
-                           background-repeat:no-repeat; background-position:right 10px center; min-width:180px; cursor:pointer;"
+                           background-repeat:no-repeat; background-position:right 10px center; min-width:200px; cursor:pointer;"
                     onchange="this.form.submit()">
                 <option value="">All Actions</option>
                 @foreach($actionTypes as $type)
@@ -36,7 +35,6 @@
                 @endforeach
             </select>
 
-            {{-- User --}}
             <select name="user_id"
                     style="background:var(--surface-03); border:1px solid var(--border); border-radius:8px;
                            padding:9px 32px 9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none;
@@ -51,22 +49,18 @@
                 @endforeach
             </select>
 
-            {{-- Date from --}}
             <div style="display:flex; align-items:center; gap:6px;">
                 <label style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">From</label>
                 <input type="date" name="from" value="{{ request('from') }}"
                        style="background:var(--surface-03); border:1px solid var(--border); border-radius:8px;
-                              padding:9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none;
-                              color-scheme:dark;">
+                              padding:9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none; color-scheme:dark;">
             </div>
 
-            {{-- Date to --}}
             <div style="display:flex; align-items:center; gap:6px;">
                 <label style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">To</label>
                 <input type="date" name="to" value="{{ request('to') }}"
                        style="background:var(--surface-03); border:1px solid var(--border); border-radius:8px;
-                              padding:9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none;
-                              color-scheme:dark;">
+                              padding:9px 12px; color:var(--text-primary); font-size:0.85rem; outline:none; color-scheme:dark;">
             </div>
 
             <button type="submit" class="btn btn-primary" style="padding:9px 18px;">
@@ -86,18 +80,23 @@
         </div>
     </form>
 
-    {{-- ── Log entries ───────────────────────────────────────────── --}}
+    {{-- Log entries --}}
     <div class="d-flex flex-column gap-2" id="log-list">
         @forelse($logs as $log)
             @php
                 $config = match($log->action) {
-                    'report_created'              => ['color' => '#81C784', 'bg' => 'rgba(46,125,50,0.1)',  'border' => 'rgba(46,125,50,0.25)',  'icon' => 'fa-plus-circle'],
-                    'report_updated'              => ['color' => '#FFB74D', 'bg' => 'rgba(245,127,23,0.1)', 'border' => 'rgba(245,127,23,0.25)', 'icon' => 'fa-edit'],
-                    'status_updated'              => ['color' => '#81D4FA', 'bg' => 'rgba(2,119,189,0.1)',  'border' => 'rgba(2,119,189,0.25)',  'icon' => 'fa-sliders-h'],
-                    'report_archived'             => ['color' => '#FFB74D', 'bg' => 'rgba(245,127,23,0.1)', 'border' => 'rgba(245,127,23,0.25)', 'icon' => 'fa-archive'],
-                    'report_restored'             => ['color' => '#81C784', 'bg' => 'rgba(46,125,50,0.1)',  'border' => 'rgba(46,125,50,0.25)',  'icon' => 'fa-undo'],
-                    'report_permanently_deleted'  => ['color' => '#EF9A9A', 'bg' => 'rgba(198,40,40,0.1)',  'border' => 'rgba(198,40,40,0.25)',  'icon' => 'fa-trash'],
-                    default                       => ['color' => '#AEAEB2', 'bg' => 'rgba(110,110,115,0.1)','border' => 'rgba(110,110,115,0.25)','icon' => 'fa-circle'],
+                    // Report actions
+                    'report_created'             => ['color' => '#81C784', 'bg' => 'rgba(46,125,50,0.1)',   'border' => 'rgba(46,125,50,0.25)',   'icon' => 'fa-plus-circle'],
+                    'report_updated'             => ['color' => '#FFB74D', 'bg' => 'rgba(245,127,23,0.1)',  'border' => 'rgba(245,127,23,0.25)',  'icon' => 'fa-edit'],
+                    'status_updated'             => ['color' => '#81D4FA', 'bg' => 'rgba(2,119,189,0.1)',   'border' => 'rgba(2,119,189,0.25)',   'icon' => 'fa-sliders-h'],
+                    'report_archived'            => ['color' => '#FFB74D', 'bg' => 'rgba(245,127,23,0.1)',  'border' => 'rgba(245,127,23,0.25)',  'icon' => 'fa-archive'],
+                    'report_restored'            => ['color' => '#81C784', 'bg' => 'rgba(46,125,50,0.1)',   'border' => 'rgba(46,125,50,0.25)',   'icon' => 'fa-undo'],
+                    'report_permanently_deleted' => ['color' => '#EF9A9A', 'bg' => 'rgba(198,40,40,0.1)',   'border' => 'rgba(198,40,40,0.25)',   'icon' => 'fa-trash'],
+                    // User actions
+                    'user_updated'               => ['color' => '#CE93D8', 'bg' => 'rgba(142,36,170,0.1)',  'border' => 'rgba(142,36,170,0.25)',  'icon' => 'fa-user-edit'],
+                    'user_suspended'             => ['color' => '#EF9A9A', 'bg' => 'rgba(198,40,40,0.1)',   'border' => 'rgba(198,40,40,0.25)',   'icon' => 'fa-ban'],
+                    'user_activated'             => ['color' => '#81C784', 'bg' => 'rgba(46,125,50,0.1)',   'border' => 'rgba(46,125,50,0.25)',   'icon' => 'fa-user-check'],
+                    default                      => ['color' => '#AEAEB2', 'bg' => 'rgba(110,110,115,0.1)', 'border' => 'rgba(110,110,115,0.25)', 'icon' => 'fa-circle'],
                 };
             @endphp
 
@@ -141,7 +140,11 @@
                              style="display:none; margin-top:8px; background:rgba(0,0,0,0.2); border-radius:6px;
                                     padding:8px 12px; font-size:0.78rem; font-family:monospace; color:var(--text-muted);">
                             @foreach($log->meta as $key => $value)
-                                <div><span style="color:var(--text-primary);">{{ $key }}</span>: {{ $value }}</div>
+                                @if($value)
+                                    <div>
+                                        <span style="color:var(--text-primary);">{{ str_replace('_', ' ', $key) }}</span>: {{ $value }}
+                                    </div>
+                                @endif
                             @endforeach
                         </div>
                     @endif

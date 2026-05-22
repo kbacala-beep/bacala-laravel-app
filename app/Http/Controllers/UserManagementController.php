@@ -17,6 +17,25 @@ class UserManagementController extends Controller
         return strtolower(is_object($role) ? $role->name : ($role ?? 'resident')) === 'admin';
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Helper — resolve a readable role name from a user
+    | Works whether role is a loaded relationship object or a raw string
+    |--------------------------------------------------------------------------
+    */
+    private function resolveRoleName(User $user): string
+    {
+        // Reload the role relationship fresh from the DB to avoid stale cache
+        $user->load('role');
+        $role = $user->role;
+        return is_object($role) ? $role->name : ($role ?? 'Unknown');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | index
+    |--------------------------------------------------------------------------
+    */
     public function index(Request $request)
     {
         if (!$this->isAdmin()) abort(403, 'Admins only.');
@@ -63,6 +82,11 @@ class UserManagementController extends Controller
         }
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | show
+    |--------------------------------------------------------------------------
+    */
     public function show(User $user)
     {
         if (!$this->isAdmin()) abort(403, 'Admins only.');
@@ -84,6 +108,97 @@ class UserManagementController extends Controller
         return view('users.show', compact('user', 'reports', 'reportStats', 'lastActive'));
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | edit
+    |--------------------------------------------------------------------------
+    */
+    public function edit(User $user)
+    {
+        if (!$this->isAdmin()) abort(403, 'Admins only.');
+        if ($user->id === Auth::id()) abort(403, 'Cannot edit your own account here.');
+
+        $roles = Role::orderBy('name')->get();
+
+        return view('users.edit', compact('user', 'roles'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | update — captures old role BEFORE update, new role AFTER, logs correctly
+    |--------------------------------------------------------------------------
+    */
+    public function update(Request $request, User $user)
+    {
+        if (!$this->isAdmin()) abort(403, 'Admins only.');
+        if ($user->id === Auth::id()) abort(403, 'Cannot edit your own account here.');
+
+        $request->validate([
+            'name'    => 'required|string|max:255',
+            'email'   => 'required|email|max:255|unique:users,email,' . $user->id,
+            'role_id' => 'required|exists:roles,id',
+        ]);
+
+        try {
+            // Capture old values BEFORE the update
+            $oldName     = $user->name;
+            $oldRoleName = $this->resolveRoleName($user);
+            $oldEmail    = $user->email;
+
+            // Perform update
+            $user->update($request->only(['name', 'email', 'role_id']));
+
+            // Resolve new role name AFTER update (fresh load)
+            $newRoleName = $this->resolveRoleName($user);
+
+            // Build a specific description
+            $changes = [];
+            if ($oldName  !== $user->name)  $changes[] = "name from \"{$oldName}\" to \"{$user->name}\"";
+            if ($oldEmail !== $user->email)  $changes[] = "email from \"{$oldEmail}\" to \"{$user->email}\"";
+            if ($oldRoleName !== $newRoleName) $changes[] = "role from \"{$oldRoleName}\" to \"{$newRoleName}\"";
+
+            $description = count($changes)
+                ? "User \"{$user->name}\" updated by " . Auth::user()->name . ': ' . implode(', ', $changes)
+                : "User \"{$user->name}\" profile saved by " . Auth::user()->name . ' (no changes)';
+
+            ActivityLog::record(
+                'user_updated',
+                $user,
+                $description,
+                [
+                    'old_name'  => $oldName,
+                    'new_name'  => $user->name,
+                    'old_email' => $oldEmail,
+                    'new_email' => $user->email,
+                    'old_role'  => $oldRoleName,
+                    'new_role'  => $newRoleName,
+                ]
+            );
+
+            Log::info('User updated', [
+                'target_user_id' => $user->id,
+                'admin_id'       => Auth::id(),
+                'old_role'       => $oldRoleName,
+                'new_role'       => $newRoleName,
+            ]);
+
+            return redirect()->route('users.show', $user->id)
+                             ->with('success', 'User updated successfully.');
+
+        } catch (\Throwable $e) {
+            Log::error('UserManagementController@update failed', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Failed to update user.')->withInput();
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | suspend
+    |--------------------------------------------------------------------------
+    */
     public function suspend(Request $request, User $user)
     {
         if (!$this->isAdmin()) abort(403, 'Admins only.');
@@ -98,10 +213,14 @@ class UserManagementController extends Controller
                 'suspension_reason' => $request->input('suspension_reason'),
             ]);
 
-            ActivityLog::record('user_suspended', $user,
+            ActivityLog::record(
+                'user_suspended',
+                $user,
                 "User \"{$user->name}\" suspended by " . Auth::user()->name .
                 ($request->suspension_reason ? ". Reason: {$request->suspension_reason}" : ''),
             );
+
+            Log::info('User suspended', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
 
             if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name} has been suspended."]);
             return back()->with('success', "{$user->name} has been suspended.");
@@ -113,6 +232,11 @@ class UserManagementController extends Controller
         }
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | activate
+    |--------------------------------------------------------------------------
+    */
     public function activate(Request $request, User $user)
     {
         if (!$this->isAdmin()) abort(403, 'Admins only.');
@@ -124,9 +248,13 @@ class UserManagementController extends Controller
                 'suspension_reason' => null,
             ]);
 
-            ActivityLog::record('user_activated', $user,
+            ActivityLog::record(
+                'user_activated',
+                $user,
                 "User \"{$user->name}\" account reactivated by " . Auth::user()->name,
             );
+
+            Log::info('User activated', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
 
             if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name}'s account has been reactivated."]);
             return back()->with('success', "{$user->name}'s account has been reactivated.");

@@ -22,10 +22,9 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'role' => ['required', 'in:Admin,Resident'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'name'          => ['required', 'string', 'max:255'],
+            'email'         => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
+            'password'      => ['required', 'confirmed', Rules\Password::defaults()],
             'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
@@ -34,13 +33,14 @@ class RegisteredUserController extends Controller
             $path = $request->file('profile_photo')->store('profiles', 'public');
         }
 
-        $role = Role::where('name', $request->role)->first();
+        // All public registrations are Resident — admins are created by existing admins only
+        $role = Role::where('name', 'Resident')->firstOrFail();
 
         $user = User::create([
-            'name' => $request->name,
-            'role_id' => $role->id,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name'          => $request->name,
+            'role_id'       => $role->id,
+            'email'         => $request->email,
+            'password'      => Hash::make($request->password),
             'profile_photo' => $path,
         ]);
 

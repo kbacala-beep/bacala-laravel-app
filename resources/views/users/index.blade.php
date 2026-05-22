@@ -10,7 +10,7 @@
         Manage resident accounts and monitor report activity. Your own account is excluded.
     </p>
 
-    {{-- ── Resident Stats ──────────────────────────────────────── --}}
+    {{-- Stats --}}
     <div class="row g-3 mb-4">
         <div class="col-sm-4">
             <div class="rounded p-3 d-flex align-items-center gap-3" style="background:var(--surface-02); border:1px solid var(--border);">
@@ -47,7 +47,7 @@
         </div>
     </div>
 
-    {{-- ── Search ──────────────────────────────────────────────── --}}
+    {{-- Search --}}
     <form method="GET" action="{{ route('users.index') }}">
         <div class="d-flex flex-wrap gap-2 mb-4 align-items-end">
             <div style="position:relative; flex:1; min-width:200px;">
@@ -78,9 +78,7 @@
         </div>
     </form>
 
-    {{-- ══════════════════════════════════════════════════════════ --}}
-    {{-- ADMINS                                                     --}}
-    {{-- ══════════════════════════════════════════════════════════ --}}
+    {{-- Admins --}}
     <div class="mb-4">
         <div class="d-flex align-items-center gap-2 mb-2">
             <span style="width:4px; height:18px; background:var(--primary); border-radius:2px; flex-shrink:0; display:inline-block;"></span>
@@ -92,9 +90,7 @@
         <div class="table-responsive">
             <table class="table table-bordered table-hover align-middle" style="border-color:rgba(198,40,40,0.2);">
                 <thead style="background:rgba(198,40,40,0.08);">
-                    <tr>
-                        <th>#</th><th>User</th><th>Email</th><th>Reports</th><th>Joined</th>
-                    </tr>
+                    <tr><th>#</th><th>User</th><th>Email</th><th>Reports</th><th>Joined</th></tr>
                 </thead>
                 <tbody>
                     @forelse($admins as $i => $user)
@@ -124,9 +120,7 @@
         @endif
     </div>
 
-    {{-- ══════════════════════════════════════════════════════════ --}}
-    {{-- RESIDENTS                                                  --}}
-    {{-- ══════════════════════════════════════════════════════════ --}}
+    {{-- Residents --}}
     <div>
         <div class="d-flex align-items-center gap-2 mb-2">
             <span style="width:4px; height:18px; background:var(--surface-04); border-radius:2px; flex-shrink:0; display:inline-block;"></span>
@@ -177,12 +171,16 @@
                                 </a>
                                 @if($user->is_suspended)
                                     <button type="button" class="btn btn-success btn-sm btn-activate"
-                                            data-id="{{ $user->id }}" data-name="{{ $user->name }}">
+                                            data-id="{{ $user->id }}"
+                                            data-name="{{ $user->name }}"
+                                            data-url="{{ route('users.activate', $user->id) }}">
                                         <i class="fa fa-user-check me-1"></i> Activate
                                     </button>
                                 @else
                                     <button type="button" class="btn btn-danger btn-sm btn-suspend"
-                                            data-id="{{ $user->id }}" data-name="{{ $user->name }}">
+                                            data-id="{{ $user->id }}"
+                                            data-name="{{ $user->name }}"
+                                            data-url="{{ route('users.suspend', $user->id) }}">
                                         <i class="fa fa-ban me-1"></i> Suspend
                                     </button>
                                 @endif
@@ -202,7 +200,7 @@
     </div>
 </div>
 
-{{-- ── Suspend Modal ────────────────────────────────────────────── --}}
+{{-- Suspend Modal --}}
 <div id="suspendModal" style="display:none; position:fixed; inset:0; z-index:9000; align-items:center; justify-content:center;">
     <div style="position:absolute; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px);" onclick="closeSuspendModal()"></div>
     <div style="position:relative; z-index:1; background:var(--surface-02); border:1px solid var(--border-strong);
@@ -235,75 +233,3 @@
     </div>
 </div>
 @endsection
-
-@push('scripts')
-<script>
-(function($) {
-    "use strict";
-
-    let activeSuspendId = null;
-
-    // ── Open suspend modal ────────────────────────────────────────
-    $(document).on('click', '.btn-suspend', function () {
-        activeSuspendId = $(this).data('id');
-        $('#suspend-user-name').text($(this).data('name'));
-        $('#suspend-reason').val('');
-        const $m = $('#suspendModal');
-        $m.css('display', 'flex').css('opacity', '0');
-        setTimeout(() => $m.css({ opacity: '1', transition: 'opacity 0.2s ease' }), 10);
-    });
-
-    window.closeSuspendModal = function () {
-        $('#suspendModal').css('opacity', '0');
-        setTimeout(() => $('#suspendModal').css('display', 'none'), 200);
-        activeSuspendId = null;
-    };
-
-    window.confirmSuspend = function () {
-        if (!activeSuspendId) return;
-        const $btn = $('#suspend-confirm-btn');
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Suspending...');
-
-        $.ajax({
-            url:    '/users/' + activeSuspendId + '/suspend',
-            method: 'POST',
-            data:   { suspension_reason: $('#suspend-reason').val() },
-            success: function (res) {
-                showToast(res.message, 'success');
-                closeSuspendModal();
-                setTimeout(() => window.location.reload(), 800);
-            },
-            error: function () { showToast('Failed to suspend user.', 'error'); },
-            complete: function () { $btn.prop('disabled', false).html('<i class="fa fa-ban me-1"></i> Suspend Account'); }
-        });
-    };
-
-    // ── Activate ──────────────────────────────────────────────────
-    $(document).on('click', '.btn-activate', function () {
-        const id   = $(this).data('id');
-        const name = $(this).data('name');
-        if (!confirm('Reactivate ' + name + '\'s account?')) return;
-        const $btn = $(this);
-        $btn.prop('disabled', true);
-
-        $.ajax({
-            url:    '/users/' + id + '/activate',
-            method: 'POST',
-            success: function (res) {
-                showToast(res.message, 'success');
-                setTimeout(() => window.location.reload(), 800);
-            },
-            error: function () {
-                showToast('Failed to reactivate user.', 'error');
-                $btn.prop('disabled', false);
-            }
-        });
-    });
-
-    $(document).on('keydown', function (e) {
-        if (e.key === 'Escape' && activeSuspendId) closeSuspendModal();
-    });
-
-})(jQuery);
-</script>
-@endpush
