@@ -29,6 +29,9 @@
             <a href="{{ route('reports.index') }}" class="nav-item nav-link {{ request()->routeIs('reports.index') || request()->routeIs('reports.show') || request()->routeIs('reports.create') || request()->routeIs('reports.edit') ? 'active' : '' }}">
                 <i class="fa fa-laptop me-2"></i>Reports
             </a>
+            <a href="{{ route('notifications.index') }}" class="nav-item nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}">
+                <i class="fa fa-bell me-2"></i>Notifications
+            </a>
 
             @php
                 $userRole = Auth::user()->role;

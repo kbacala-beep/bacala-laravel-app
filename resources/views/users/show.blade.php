@@ -75,19 +75,26 @@
                     </div>
                 </div>
 
-                {{-- Suspend / Activate action --}}
                 <div style="border-top:1px solid var(--border); padding:16px 24px;">
-                    @if($user->is_suspended)
-                        <button type="button" class="btn btn-success w-100 btn-activate"
-                                data-id="{{ $user->id }}" data-name="{{ $user->name }}">
-                            <i class="fa fa-user-check me-1"></i> Reactivate Account
+                    <div class="d-grid gap-2">
+                        @if($user->is_suspended)
+                            <button type="button" class="btn btn-success btn-activate"
+                                    data-id="{{ $user->id }}" data-name="{{ $user->name }}">
+                                <i class="fa fa-user-check me-1"></i> Reactivate Account
+                            </button>
+                        @else
+                            <button type="button" class="btn btn-danger btn-suspend"
+                                    data-id="{{ $user->id }}" data-name="{{ $user->name }}">
+                                <i class="fa fa-ban me-1"></i> Suspend Account
+                            </button>
+                        @endif
+                        
+                        <button type="button" class="btn btn-warning btn-change-role"
+                                data-id="{{ $user->id }}" data-name="{{ $user->name }}"
+                                data-current-role="{{ $user->role_id }}">
+                            <i class="fa fa-user-tie me-1"></i> Change Role
                         </button>
-                    @else
-                        <button type="button" class="btn btn-danger w-100 btn-suspend"
-                                data-id="{{ $user->id }}" data-name="{{ $user->name }}">
-                            <i class="fa fa-ban me-1"></i> Suspend Account
-                        </button>
-                    @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -231,6 +238,41 @@
         </div>
     </div>
 </div>
+
+{{-- Change Role Modal --}}
+<div id="changeRoleModal" style="display:none; position:fixed; inset:0; z-index:9000; align-items:center; justify-content:center;">
+    <div style="position:absolute; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px);" onclick="closeChangeRoleModal()"></div>
+    <div style="position:relative; z-index:1; background:var(--surface-02); border:1px solid var(--border-strong);
+                border-radius:var(--radius-lg); padding:28px 32px; width:100%; max-width:440px; box-shadow:var(--shadow-lg);">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <h5 class="mb-0" style="font-weight:600; color:#FBC02D;"><i class="fa fa-user-tie me-2"></i>Change User Role</h5>
+            <button onclick="closeChangeRoleModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer;">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:16px;">
+            Change the role for <strong id="role-user-name" style="color:var(--text-primary);"></strong>.
+        </p>
+        <div class="mb-4">
+            <label style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:6px; display:block;">Select Role</label>
+            <select id="role-select" style="width:100%; background:var(--surface-03); border:1px solid var(--border); border-radius:8px;
+                                           padding:10px 14px; color:var(--text-primary); font-size:0.85rem; outline:none; font-family:inherit;">
+                <option value="">-- Choose Role --</option>
+                @if(isset($roles) && count($roles) > 0)
+                    @foreach($roles as $role)
+                        <option value="{{ $role->id }}">{{ $role->name }}</option>
+                    @endforeach
+                @endif
+            </select>
+        </div>
+        <div class="d-flex gap-2 justify-content-end">
+            <button onclick="closeChangeRoleModal()" class="btn btn-secondary">Cancel</button>
+            <button id="role-confirm-btn" onclick="confirmChangeRole()" class="btn btn-warning">
+                <i class="fa fa-user-tie me-1"></i> Change Role
+            </button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -297,6 +339,51 @@
 
     $(document).on('keydown', function (e) {
         if (e.key === 'Escape' && activeSuspendId) closeSuspendModal();
+    });
+
+    let activeRoleChangeId = null;
+
+    $(document).on('click', '.btn-change-role', function () {
+        activeRoleChangeId = $(this).data('id');
+        $('#role-user-name').text($(this).data('name'));
+        $('#role-select').val($(this).data('current-role'));
+        const $m = $('#changeRoleModal');
+        $m.css('display', 'flex').css('opacity', '0');
+        setTimeout(() => $m.css({ opacity: '1', transition: 'opacity 0.2s ease' }), 10);
+    });
+
+    window.closeChangeRoleModal = function () {
+        $('#changeRoleModal').css('opacity', '0');
+        setTimeout(() => $('#changeRoleModal').css('display', 'none'), 200);
+        activeRoleChangeId = null;
+    };
+
+    window.confirmChangeRole = function () {
+        if (!activeRoleChangeId) return;
+        const roleId = $('#role-select').val();
+        if (!roleId) {
+            showToast('Please select a role.', 'warning');
+            return;
+        }
+        const $btn = $('#role-confirm-btn');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Changing...');
+
+        $.ajax({
+            url:    '/users/' + activeRoleChangeId + '/change-role',
+            method: 'POST',
+            data:   { role_id: roleId },
+            success: function (res) {
+                showToast(res.message, 'success');
+                closeChangeRoleModal();
+                setTimeout(() => window.location.reload(), 800);
+            },
+            error: function () { showToast('Failed to change role.', 'error'); },
+            complete: function () { $btn.prop('disabled', false).html('<i class="fa fa-user-tie me-1"></i> Change Role'); }
+        });
+    };
+
+    $(document).on('keydown', function (e) {
+        if (e.key === 'Escape' && activeRoleChangeId) closeChangeRoleModal();
     });
 
 })(jQuery);

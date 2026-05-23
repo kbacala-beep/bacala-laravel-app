@@ -35,7 +35,7 @@
         .grid-lines { position: absolute; bottom: 60px; right: 40px; display: grid; grid-template-columns: repeat(6, 1px); gap: 18px; height: 120px; z-index: 0; opacity: 0.15; }
         .grid-lines span { display: block; width: 1px; height: 100%; background: var(--red-hover); }
         .left-footer { position: relative; z-index: 1; color: var(--muted); font-size: 0.78rem; }
-        .right-panel { width: 520px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; padding: 48px; background: var(--bg); overflow-y: auto; }
+        .right-panel { width: 520px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-start; padding: 48px; background: var(--bg); overflow-y: auto; }
         .form-header { margin-bottom: 28px; }
         .form-header h2 { font-family: 'DM Serif Display', serif; font-size: 1.8rem; color: var(--text); margin-bottom: 6px; }
         .form-header p { color: var(--muted); font-size: 0.87rem; }
@@ -150,6 +150,24 @@
                            placeholder="you@example.com"
                            value="{{ old('email') }}"
                            required>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <label for="phone">Phone Number <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
+                <div class="field-wrap">
+                    <input type="tel" id="phone" name="phone"
+                           placeholder="+63 900 000 0000"
+                           value="{{ old('phone') }}">
+                </div>
+            </div>
+
+            <div class="field-group">
+                <label for="address">Address <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
+                <div class="field-wrap">
+                    <input type="text" id="address" name="address"
+                           placeholder="123 Main Street, Barangay..."
+                           value="{{ old('address') }}">
                 </div>
             </div>
 

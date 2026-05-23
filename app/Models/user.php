@@ -50,6 +50,16 @@ class User extends Authenticatable
         return $this->hasMany(Report::class);
     }
 
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function notificationPreference()
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
     public function isSuspended(): bool
     {
         return (bool) $this->is_suspended;

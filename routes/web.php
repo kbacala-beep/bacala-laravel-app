@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserManagementController;
@@ -38,6 +39,16 @@ Route::middleware('auth')->group(function () {
     Route::put('/users/{user}',           [UserManagementController::class, 'update'])->name('users.update');
     Route::post('/users/{user}/suspend',  [UserManagementController::class, 'suspend'])->name('users.suspend');
     Route::post('/users/{user}/activate', [UserManagementController::class, 'activate'])->name('users.activate');
+    Route::post('/users/{user}/change-role', [UserManagementController::class, 'changeRole'])->name('users.changeRole');
+
+    // ── Notifications ──────────────────────────────────────────────
+    Route::get('/notifications',               [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread',        [NotificationController::class, 'getUnread'])->name('notifications.getUnread');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::post('/notifications/read-all',     [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'delete'])->name('notifications.delete');
+    Route::get('/notifications/preferences',   [NotificationController::class, 'preferences'])->name('notifications.preferences');
+    Route::put('/notifications/preferences',   [NotificationController::class, 'updatePreferences'])->name('notifications.updatePreferences');
 });
 
 require __DIR__.'/auth.php';

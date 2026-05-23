@@ -107,6 +107,30 @@
                             @enderror
                         </div>
 
+                        {{-- Phone --}}
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="tel" id="phone" name="phone"
+                                   class="form-control @error('phone') is-invalid @enderror"
+                                   value="{{ old('phone', $user->phone) }}"
+                                   autocomplete="tel">
+                            @error('phone')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        {{-- Address --}}
+                        <div class="mb-4">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea id="address" name="address"
+                                      class="form-control @error('address') is-invalid @enderror"
+                                      rows="3"
+                                      autocomplete="street-address">{{ old('address', $user->address) }}</textarea>
+                            @error('address')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
                         <button type="submit" class="btn btn-primary">
                             <i class="fa fa-save me-1"></i> Save Changes
                         </button>

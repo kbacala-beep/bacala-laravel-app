@@ -26,6 +26,8 @@ class RegisteredUserController extends Controller
             'email'         => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
             'password'      => ['required', 'confirmed', Rules\Password::defaults()],
             'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'phone'         => ['nullable', 'string', 'max:20'],
+            'address'       => ['nullable', 'string', 'max:500'],
         ]);
 
         $path = null;
@@ -42,6 +44,8 @@ class RegisteredUserController extends Controller
             'email'         => $request->email,
             'password'      => Hash::make($request->password),
             'profile_photo' => $path,
+            'phone'         => $request->phone,
+            'address'       => $request->address,
         ]);
 
         event(new Registered($user));

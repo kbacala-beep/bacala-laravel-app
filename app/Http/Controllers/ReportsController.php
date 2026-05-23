@@ -6,6 +6,7 @@ use App\Models\Report;
 use App\Models\Attachment;
 use App\Models\ActivityLog;
 use App\Models\Category;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -139,6 +140,9 @@ class ReportsController extends Controller
                 "Report #{$report->id} \"{$report->subject}\" submitted by " . Auth::user()->name
             );
 
+            // Send notification to the report creator
+            NotificationService::reportCreated(Auth::user(), $report->subject);
+
             Log::info('Report created', ['report_id' => $report->id, 'user_id' => Auth::id()]);
 
             return redirect()->route('reports.index')
@@ -209,6 +213,12 @@ class ReportsController extends Controller
                     "Report #{$report->id} status changed from \"{$oldStatus}\" to \"{$report->status}\" by " . Auth::user()->name,
                     ['old_status' => $oldStatus, 'new_status' => $report->status]
                 );
+
+                // Send notification to report creator about status change
+                $reportUser = $report->user;
+                if ($reportUser) {
+                    NotificationService::reportStatusChanged($reportUser, $report->subject, $oldStatus, $report->status);
+                }
 
                 Log::info('Report status updated', [
                     'report_id' => $report->id, 'admin_id' => Auth::id(),

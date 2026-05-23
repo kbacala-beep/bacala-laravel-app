@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\ActivityLog;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -104,8 +105,9 @@ class UserManagementController extends Controller
         ];
 
         $lastActive = $user->reports()->latest()->value('created_at');
+        $roles = Role::all();
 
-        return view('users.show', compact('user', 'reports', 'reportStats', 'lastActive'));
+        return view('users.show', compact('user', 'reports', 'reportStats', 'lastActive', 'roles'));
     }
 
     /*
@@ -220,6 +222,9 @@ class UserManagementController extends Controller
                 ($request->suspension_reason ? ". Reason: {$request->suspension_reason}" : ''),
             );
 
+            // Send notification
+            NotificationService::userSuspended($user, $request->input('suspension_reason'));
+
             Log::info('User suspended', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
 
             if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name} has been suspended."]);
@@ -254,6 +259,9 @@ class UserManagementController extends Controller
                 "User \"{$user->name}\" account reactivated by " . Auth::user()->name,
             );
 
+            // Send notification
+            NotificationService::userActivated($user);
+
             Log::info('User activated', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
 
             if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name}'s account has been reactivated."]);
@@ -263,6 +271,46 @@ class UserManagementController extends Controller
             Log::error('UserManagementController@activate failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
             if ($request->ajax()) return response()->json(['error' => 'Failed to reactivate user.'], 500);
             return back()->with('error', 'Failed to reactivate user.');
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | changeRole
+    |--------------------------------------------------------------------------
+    */
+    public function changeRole(Request $request, User $user)
+    {
+        if (!$this->isAdmin()) abort(403, 'Admins only.');
+
+        $validated = $request->validate([
+            'role_id' => ['required', 'exists:roles,id'],
+        ]);
+
+        try {
+            $oldRole = $user->role->name ?? 'Resident';
+            $newRole = Role::findOrFail($validated['role_id'])->name;
+
+            $user->update(['role_id' => $validated['role_id']]);
+
+            ActivityLog::record(
+                'user_role_changed',
+                $user,
+                "User \"{$user->name}\" role changed from {$oldRole} to {$newRole} by " . Auth::user()->name,
+            );
+
+            // Send notification
+            NotificationService::roleChanged($user, $newRole);
+
+            Log::info('User role changed', ['user_id' => $user->id, 'old_role' => $oldRole, 'new_role' => $newRole, 'admin_id' => Auth::id()]);
+
+            if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name}'s role changed to {$newRole}."]);
+            return back()->with('success', "{$user->name}'s role changed to {$newRole}.");
+
+        } catch (\Throwable $e) {
+            Log::error('UserManagementController@changeRole failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            if ($request->ajax()) return response()->json(['error' => 'Failed to change role.'], 500);
+            return back()->with('error', 'Failed to change role.');
         }
     }
 }
