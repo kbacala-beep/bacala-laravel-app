@@ -5,19 +5,25 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
+        Schema::create('barangays', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('color')->default('#6E6E73'); // hex for badge color
-            $table->string('icon')->default('fa-tag');   // font awesome icon class
+            $table->string('city_municipality')->default('Surigao City');
+            $table->string('captain_name')->nullable();
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('barangays');
     }
 };

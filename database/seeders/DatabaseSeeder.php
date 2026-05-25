@@ -12,14 +12,19 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * Order matters:
+     * 1. Roles must exist before users.
+     * 2. Barangays must exist before users/admins.
+     * 3. AdminSeeder depends on both Roles and Barangays.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            RoleSeeder::class,     //
+            BarangaySeeder::class, // Added: Necessary for users/admins
+            AdminSeeder::class,    //
+            CategorySeeder::class, //
         ]);
     }
 }

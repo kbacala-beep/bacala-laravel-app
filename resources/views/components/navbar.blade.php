@@ -1,72 +1,40 @@
 <nav class="navbar navbar-expand bg-secondary navbar-dark sticky-top px-4 py-0">
-    <a href="index.html" class="navbar-brand d-flex d-lg-none me-4">
+    <a href="/dashboard" class="navbar-brand d-flex d-lg-none me-4">
         <h2 class="text-primary mb-0"><i class="fa fa-user-edit"></i></h2>
     </a>
     <a href="#" class="sidebar-toggler flex-shrink-0">
         <i class="fa fa-bars"></i>
     </a>
-    <div class="d-none d-md-flex ms-4" style="position: relative;">
-        <span style="position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem; pointer-events: none;">
-            <i class="fa fa-search"></i>
-        </span>
-        <input type="search" placeholder="Search..."
-               style="background: var(--surface-03);
-                      border: 1px solid var(--border);
-                      border-radius: 8px;
-                      padding: 8px 16px 8px 36px;
-                      color: var(--text-primary);
-                      font-family: 'Roboto', sans-serif;
-                      font-size: 0.85rem;
-                      width: 240px;
-                      outline: none;
-                      transition: border-color 0.2s, box-shadow 0.2s, width 0.3s ease;"
-               onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 0 3px var(--primary-glow)'; this.style.width='300px';"
-               onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='none'; this.style.width='240px';">
-    </div>
 
     <div class="navbar-nav align-items-center ms-auto">
-        <div class="nav-item dropdown">
-            <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                <i class="fa fa-envelope me-lg-2"></i>
-                <span class="d-none d-lg-inline-flex">Message</span>
-            </a>
-            <div class="dropdown-menu dropdown-menu-end bg-secondary border-0 rounded-0 rounded-bottom m-0">
-                <a href="#" class="dropdown-item">
-                    <div class="d-flex align-items-center">
-                        <img class="rounded-circle" src="{{ asset('img/user.jpg') }}" alt=""
-                            style="width: 40px; height: 40px;">
-                        <div class="ms-2">
-                            <h6 class="fw-normal mb-0">Jhon send you a message</h6>
-                            <small>15 light years ago</small>
-                        </div>
+
+        {{-- ── Messages dropdown (real data) ──────────────────── --}}
+        <div class="nav-item dropdown" style="position: relative; display: inline-block; margin-right: 1rem;">
+            <button class="btn btn-link" id="messageBell" data-bs-toggle="dropdown" aria-expanded="false" onclick="loadMessageDropdown()" style="color: var(--text-primary); text-decoration: none; font-size: 1.1rem; position: relative; padding: 0.5rem;">
+                <i class="fa fa-envelope"></i>
+            </button>
+            <span class="badge rounded-pill bg-danger" id="msg-badge" style="display: none; position: absolute; top: -5px; right: -5px; padding: 2px 6px; font-size: 0.7rem;">
+                <span id="messageCount">0</span>
+            </span>
+
+            <div class="dropdown-menu dropdown-menu-end" style="background: var(--surface-02) !important; border: 1px solid var(--border); border-radius: 8px; min-width: 320px; max-width: 400px; z-index: 1050;">
+                <div class="dropdown-header d-flex align-items-center justify-content-between" style="border-bottom: 1px solid var(--border); padding: 12px 16px; background: var(--surface-02) !important;">
+                    <span style="font-weight: 600; color: var(--text-primary);">Messages</span>
+                </div>
+
+                <div id="message-dropdown-items" style="max-height: 400px; overflow-y: auto; background: var(--surface-02) !important;">
+                    <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                        <i class="fa fa-inbox" style="margin-right: 8px;"></i> No new messages
                     </div>
+                </div>
+
+                <div class="dropdown-divider" style="margin: 0; border-top: 1px solid var(--border);"></div>
+                <a href="{{ route('messages.index') }}" class="dropdown-item" style="padding: 10px 16px; color: var(--primary-hover); text-decoration: none; font-size: 0.85rem; background: var(--surface-02) !important;">
+                    View all messages →
                 </a>
-                <hr class="dropdown-divider">
-                <a href="#" class="dropdown-item">
-                    <div class="d-flex align-items-center">
-                        <img class="rounded-circle" src="{{ asset('img/user.jpg') }}" alt=""
-                            style="width: 40px; height: 40px;">
-                        <div class="ms-2">
-                            <h6 class="fw-normal mb-0">Jhon send you a message</h6>
-                            <small>15 minutes ago</small>
-                        </div>
-                    </div>
-                </a>
-                <hr class="dropdown-divider">
-                <a href="#" class="dropdown-item">
-                    <div class="d-flex align-items-center">
-                        <img class="rounded-circle" src="{{ asset('img/user.jpg') }}" alt=""
-                            style="width: 40px; height: 40px;">
-                        <div class="ms-2">
-                            <h6 class="fw-normal mb-0">Jhon send you a message</h6>
-                            <small>15 minutes ago</small>
-                        </div>
-                    </div>
-                </a>
-                <hr class="dropdown-divider">
-                <a href="#" class="dropdown-item text-center">See all message</a>
             </div>
         </div>
+
         {{-- Notifications Bell --}}
         <div class="nav-item me-3">
             @include('components.notification-bell')

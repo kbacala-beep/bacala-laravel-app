@@ -14,27 +14,12 @@ class UserManagementController extends Controller
 {
     private function isAdmin(): bool
     {
-        $role = Auth::user()->role;
-        return strtolower(is_object($role) ? $role->name : ($role ?? 'resident')) === 'admin';
+        return Auth::user()->isAdmin();
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Helper — resolve a readable role name from a user
-    | Works whether role is a loaded relationship object or a raw string
-    |--------------------------------------------------------------------------
-    */
-    private function resolveRoleName(User $user): string
-    {
-        // Reload the role relationship fresh from the DB to avoid stale cache
-        $user->load('role');
-        $role = $user->role;
-        return is_object($role) ? $role->name : ($role ?? 'Unknown');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | index
+    | index — split admins / residents with stats
     |--------------------------------------------------------------------------
     */
     public function index(Request $request)
@@ -85,7 +70,54 @@ class UserManagementController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | show
+    | edit — render the user edit form
+    |--------------------------------------------------------------------------
+    */
+    public function edit(User $user)
+    {
+        if (!$this->isAdmin()) abort(403, 'Admins only.');
+        if ($user->id === Auth::id()) abort(403, 'Cannot edit your own account here.');
+        return view('users.edit', compact('user'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | update — name and email only (role changes go through changeRole)
+    |--------------------------------------------------------------------------
+    */
+    public function update(Request $request, User $user)
+    {
+        if (!$this->isAdmin()) abort(403, 'Admins only.');
+
+        $validated = $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+        ]);
+
+        try {
+            $user->update($validated);
+
+            ActivityLog::record('user_updated', $user,
+                "User \"{$user->name}\" profile updated by " . Auth::user()->name
+            );
+
+            Log::info('User profile updated', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
+
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'message' => 'Profile updated successfully.']);
+            }
+            return redirect()->route('users.show', $user->id)->with('success', 'Profile updated successfully.');
+
+        } catch (\Throwable $e) {
+            Log::error('UserManagementController@update failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            if ($request->ajax()) return response()->json(['error' => 'Failed to update profile.'], 500);
+            return back()->with('error', 'Failed to update profile.')->withInput();
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | show — profile details + report history
     |--------------------------------------------------------------------------
     */
     public function show(User $user)
@@ -94,106 +126,17 @@ class UserManagementController extends Controller
         if ($user->id === Auth::id()) abort(403, 'Cannot view your own account here.');
 
         $user->loadCount('reports');
-
-        $reports = $user->reports()->with('category')->latest()->paginate(10);
-
+        $reports     = $user->reports()->with('category')->latest()->paginate(10);
         $reportStats = [
             'total'       => $user->reports()->count(),
             'pending'     => $user->reports()->where('status', 'Pending')->count(),
             'in_progress' => $user->reports()->where('status', 'In Progress')->count(),
             'resolved'    => $user->reports()->where('status', 'Resolved')->count(),
         ];
-
         $lastActive = $user->reports()->latest()->value('created_at');
-        $roles = Role::all();
+        $roles      = Role::orderBy('name')->get();
 
         return view('users.show', compact('user', 'reports', 'reportStats', 'lastActive', 'roles'));
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | edit
-    |--------------------------------------------------------------------------
-    */
-    public function edit(User $user)
-    {
-        if (!$this->isAdmin()) abort(403, 'Admins only.');
-        if ($user->id === Auth::id()) abort(403, 'Cannot edit your own account here.');
-
-        $roles = Role::orderBy('name')->get();
-
-        return view('users.edit', compact('user', 'roles'));
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | update — captures old role BEFORE update, new role AFTER, logs correctly
-    |--------------------------------------------------------------------------
-    */
-    public function update(Request $request, User $user)
-    {
-        if (!$this->isAdmin()) abort(403, 'Admins only.');
-        if ($user->id === Auth::id()) abort(403, 'Cannot edit your own account here.');
-
-        $request->validate([
-            'name'    => 'required|string|max:255',
-            'email'   => 'required|email|max:255|unique:users,email,' . $user->id,
-            'role_id' => 'required|exists:roles,id',
-        ]);
-
-        try {
-            // Capture old values BEFORE the update
-            $oldName     = $user->name;
-            $oldRoleName = $this->resolveRoleName($user);
-            $oldEmail    = $user->email;
-
-            // Perform update
-            $user->update($request->only(['name', 'email', 'role_id']));
-
-            // Resolve new role name AFTER update (fresh load)
-            $newRoleName = $this->resolveRoleName($user);
-
-            // Build a specific description
-            $changes = [];
-            if ($oldName  !== $user->name)  $changes[] = "name from \"{$oldName}\" to \"{$user->name}\"";
-            if ($oldEmail !== $user->email)  $changes[] = "email from \"{$oldEmail}\" to \"{$user->email}\"";
-            if ($oldRoleName !== $newRoleName) $changes[] = "role from \"{$oldRoleName}\" to \"{$newRoleName}\"";
-
-            $description = count($changes)
-                ? "User \"{$user->name}\" updated by " . Auth::user()->name . ': ' . implode(', ', $changes)
-                : "User \"{$user->name}\" profile saved by " . Auth::user()->name . ' (no changes)';
-
-            ActivityLog::record(
-                'user_updated',
-                $user,
-                $description,
-                [
-                    'old_name'  => $oldName,
-                    'new_name'  => $user->name,
-                    'old_email' => $oldEmail,
-                    'new_email' => $user->email,
-                    'old_role'  => $oldRoleName,
-                    'new_role'  => $newRoleName,
-                ]
-            );
-
-            Log::info('User updated', [
-                'target_user_id' => $user->id,
-                'admin_id'       => Auth::id(),
-                'old_role'       => $oldRoleName,
-                'new_role'       => $newRoleName,
-            ]);
-
-            return redirect()->route('users.show', $user->id)
-                             ->with('success', 'User updated successfully.');
-
-        } catch (\Throwable $e) {
-            Log::error('UserManagementController@update failed', [
-                'user_id' => $user->id,
-                'error'   => $e->getMessage(),
-            ]);
-            return back()->with('error', 'Failed to update user.')->withInput();
-        }
     }
 
     /*
@@ -205,6 +148,12 @@ class UserManagementController extends Controller
     {
         if (!$this->isAdmin()) abort(403, 'Admins only.');
         if ($user->id === Auth::id()) abort(403, 'You cannot suspend yourself.');
+
+        // Prevent suspending other admins
+        if ($user->isAdmin()) {
+            if ($request->ajax()) return response()->json(['error' => 'Admin accounts cannot be suspended.'], 403);
+            return back()->with('error', 'Admin accounts cannot be suspended.');
+        }
 
         $request->validate(['suspension_reason' => 'nullable|string|max:500']);
 
@@ -222,9 +171,7 @@ class UserManagementController extends Controller
                 ($request->suspension_reason ? ". Reason: {$request->suspension_reason}" : ''),
             );
 
-            // Send notification
             NotificationService::userSuspended($user, $request->input('suspension_reason'));
-
             Log::info('User suspended', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
 
             if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name} has been suspended."]);
@@ -239,7 +186,7 @@ class UserManagementController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | activate
+    | activate — lift a suspension
     |--------------------------------------------------------------------------
     */
     public function activate(Request $request, User $user)
@@ -253,15 +200,11 @@ class UserManagementController extends Controller
                 'suspension_reason' => null,
             ]);
 
-            ActivityLog::record(
-                'user_activated',
-                $user,
+            ActivityLog::record('user_activated', $user,
                 "User \"{$user->name}\" account reactivated by " . Auth::user()->name,
             );
 
-            // Send notification
             NotificationService::userActivated($user);
-
             Log::info('User activated', ['user_id' => $user->id, 'admin_id' => Auth::id()]);
 
             if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name}'s account has been reactivated."]);
@@ -276,41 +219,65 @@ class UserManagementController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | changeRole
+    | changeRole — deliberate appointment/demotion with required reason
+    |
+    | Guards:
+    |  - Cannot change your own role
+    |  - Cannot demote the last admin (system must always have at least one)
+    |  - Reason is required so there is always an audit trail
     |--------------------------------------------------------------------------
     */
     public function changeRole(Request $request, User $user)
     {
         if (!$this->isAdmin()) abort(403, 'Admins only.');
 
+        if ($user->id === Auth::id()) {
+            if ($request->ajax()) return response()->json(['error' => 'You cannot change your own role.'], 403);
+            return back()->with('error', 'You cannot change your own role.');
+        }
+
         $validated = $request->validate([
             'role_id' => ['required', 'exists:roles,id'],
+            'reason'  => ['required', 'string', 'min:5', 'max:500'],
         ]);
 
-        try {
-            $oldRole = $user->role->name ?? 'Resident';
-            $newRole = Role::findOrFail($validated['role_id'])->name;
+        $newRole = Role::findOrFail($validated['role_id']);
+        $oldRole = $user->role_relation;
+        $oldRoleName = $oldRole->name ?? 'Resident';
+        $newRoleName = $newRole->name;
 
-            $user->update(['role_id' => $validated['role_id']]);
-
-            ActivityLog::record(
-                'user_role_changed',
-                $user,
-                "User \"{$user->name}\" role changed from {$oldRole} to {$newRole} by " . Auth::user()->name,
-            );
-
-            // Send notification
-            NotificationService::roleChanged($user, $newRole);
-
-            Log::info('User role changed', ['user_id' => $user->id, 'old_role' => $oldRole, 'new_role' => $newRole, 'admin_id' => Auth::id()]);
-
-            if ($request->ajax()) return response()->json(['success' => true, 'message' => "{$user->name}'s role changed to {$newRole}."]);
-            return back()->with('success', "{$user->name}'s role changed to {$newRole}.");
-
-        } catch (\Throwable $e) {
-            Log::error('UserManagementController@changeRole failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
-            if ($request->ajax()) return response()->json(['error' => 'Failed to change role.'], 500);
-            return back()->with('error', 'Failed to change role.');
+        if ($user->role_id === (int) $validated['role_id']) {
+            if ($request->ajax()) return response()->json(['error' => "{$user->name} is already a {$newRoleName}."]);
+            return back()->with('error', "{$user->name} is already a {$newRoleName}.");
         }
+
+        $adminRole = Role::where('name', 'Admin')->first();
+        $isBeingDemoted = $user->role_id === $adminRole?->id && $newRole->id !== $adminRole?->id;
+
+        if ($isBeingDemoted) {
+            $adminCount = User::where('role_id', $adminRole->id)->count();
+            if ($adminCount <= 1) {
+                $msg = 'Cannot demote the last admin. Appoint another admin first.';
+                if ($request->ajax()) return response()->json(['error' => $msg], 403);
+                return back()->with('error', $msg);
+            }
+        }
+
+        $user->update(['role_id' => $newRole->id]);
+
+        $adminName = Auth::user()->name;
+        $action = $isBeingDemoted ? 'demoted to' : 'appointed as';
+        $description = "User \"{$user->name}\" {$action} {$newRoleName} by {$adminName}. Reason: {$validated['reason']}";
+
+        try { ActivityLog::record('user_role_changed', $user, $description, ['old_role' => $oldRoleName, 'new_role' => $newRoleName, 'reason' => $validated['reason'], 'changed_by' => $adminName]); } catch (\Throwable $e) { /* silent */ }
+
+        try { NotificationService::roleChanged($user, $newRoleName); } catch (\Throwable $e) { /* silent */ }
+
+        $message = strtolower($newRoleName) === 'admin'
+            ? "{$user->name} has been appointed as Admin."
+            : "{$user->name} has been moved back to Resident.";
+
+        if ($request->ajax()) return response()->json(['success' => true, 'message' => $message]);
+        return back()->with('success', $message);
     }
 }

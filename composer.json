@@ -26,13 +26,7 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        },
-        "classmap": [
-            "app/Models/attachment.php",
-            "app/Models/report.php",
-            "app/Models/role.php",
-            "app/Models/user.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {

@@ -12,8 +12,7 @@ class DashboardController extends Controller
 {
     private function isAdmin(): bool
     {
-        $role = Auth::user()->role;
-        return strtolower(is_object($role) ? $role->name : ($role ?? 'resident')) === 'admin';
+        return Auth::user()->isAdmin();
     }
 
     public function index()

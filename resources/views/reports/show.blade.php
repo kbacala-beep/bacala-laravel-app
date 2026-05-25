@@ -7,8 +7,7 @@
         <h2 class="mb-4">Report Details</h2>
 
         @php
-            $currentRole = strtolower(is_object(Auth::user()->role) ? Auth::user()->role->name : (Auth::user()->role ?? 'resident'));
-            $isAdmin     = $currentRole === 'admin';
+            $isAdmin     = Auth::user()->isAdmin();
             $isOwner     = $report->user_id === Auth::id();
 
             $photos    = $report->attachments->filter(fn($a) => str_starts_with($a->file_type, 'image'));
@@ -44,7 +43,7 @@
                             <div style="color: var(--text-primary); font-weight:500;">
                                 {{ $report->user->name ?? 'N/A' }}
                                 <small style="color: var(--primary-hover);">
-                                    ({{ is_object($report->user->role ?? null) ? $report->user->role->name : ($report->user->role ?? 'Resident') }})
+                                    ({{ $report->user->role_relation->name ?? 'Resident' }})
                                 </small>
                             </div>
                         </div>
@@ -190,36 +189,6 @@
 
 @push('scripts')
 <script>
-(function($) {
-    "use strict";
-
-    // ── AJAX delete/archive with redirect after toast ─────────────
-    $(document).on('click', '.ajax-delete-redirect', function () {
-        const $btn     = $(this);
-        const url      = $btn.data('url');
-        const redirect = $btn.data('redirect');
-        const isAdmin  = $btn.find('i').hasClass('fa-archive');
-        const msg      = isAdmin ? 'Archive this report?' : 'Are you sure you want to delete this report?';
-
-        if (!confirm(msg)) return;
-
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i> Processing...');
-
-        $.ajax({
-            url:    url,
-            method: 'DELETE',
-            success: function (res) {
-                showToast(res.message, 'success');
-                setTimeout(() => window.location.href = redirect, 1200);
-            },
-            error: function () {
-                showToast('Action failed. Please try again.', 'error');
-                $btn.prop('disabled', false);
-            }
-        });
-    });
-
-})(jQuery);
 
 // ── Gallery ───────────────────────────────────────────────────────
 const galleryPhotos = @json($photos->values()->map(fn($p) => asset('storage/' . $p->file_path)));

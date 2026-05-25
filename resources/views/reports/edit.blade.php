@@ -6,8 +6,7 @@
 <div class="container-fluid pt-4 px-4 pb-5">
 
     @php
-        $currentRole = strtolower(is_object(Auth::user()->role) ? Auth::user()->role->name : (Auth::user()->role ?? 'resident'));
-        $isAdmin = $currentRole === 'admin';
+        $isAdmin = Auth::user()->isAdmin();
     @endphp
 
     <div class="d-flex align-items-center justify-content-between mb-4">
@@ -20,8 +19,8 @@
     @if($isAdmin)
         <div class="alert alert-info mb-4" style="background:rgba(2,119,189,0.12); color:#81D4FA; border-left:3px solid #0277BD; border-radius:var(--radius-md);">
             <i class="fa fa-info-circle me-2"></i>
-            As an admin, you can update the <strong>status</strong> and <strong>resident name</strong> only.
-            Category, subject, and description are locked to the original submitter.
+            As an admin, you can update the <strong>status</strong> only.
+            Resident Name, Category, subject, and description are locked to the original submitter.
         </div>
     @endif
 
@@ -47,13 +46,18 @@
                 @csrf
                 @method('PUT')
 
-                {{-- Resident Name — editable by both --}}
+                {{-- Resident Name — read-only for admins --}}
                 <div class="mb-3">
                     <label for="resident_name" class="form-label">Resident Name</label>
-                    <input type="text" name="resident_name" id="resident_name"
-                           class="form-control @error('resident_name') is-invalid @enderror"
-                           value="{{ old('resident_name', $report->resident_name) }}"
-                           required>
+                    @if($isAdmin)
+                        <span style="color:var(--text-muted); font-size:0.78rem;">(read-only)</span>
+                        <input type="text" class="form-control" value="{{ $report->resident_name }}" readonly style="background:var(--surface-03); cursor:not-allowed;">
+                    @else
+                        <input type="text" name="resident_name" id="resident_name"
+                               class="form-control @error('resident_name') is-invalid @enderror"
+                               value="{{ old('resident_name', $report->resident_name) }}"
+                               required>
+                    @endif
                     @error('resident_name')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -106,7 +110,7 @@
                     <input type="text" name="subject" id="subject"
                            class="form-control"
                            value="{{ old('subject', $report->subject) }}"
-                           @if($isAdmin) readonly style="opacity:0.5; cursor:not-allowed;" @else required @endif>
+                           @if($isAdmin) readonly style="background:var(--surface-03); cursor:not-allowed;" @else required @endif>
                 </div>
 
                 {{-- Description — locked for admins --}}
@@ -119,7 +123,7 @@
                     </label>
                     <textarea name="description" id="description"
                               class="form-control" rows="4"
-                              @if($isAdmin) readonly style="opacity:0.5; cursor:not-allowed;" @else required @endif>{{ old('description', $report->description) }}</textarea>
+                              @if($isAdmin) readonly style="background:var(--surface-03); cursor:not-allowed;" @else required @endif>{{ old('description', $report->description) }}</textarea>
                 </div>
 
                 {{-- Status — ADMIN ONLY --}}

@@ -20,7 +20,7 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        // Check if the user is suspended — log them out and redirect back with a message
+        // 1. Suspension Check (Keep your existing logic)
         if (Auth::user()->isSuspended()) {
             $reason = Auth::user()->suspension_reason;
             Auth::guard('web')->logout();

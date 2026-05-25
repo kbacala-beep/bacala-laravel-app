@@ -66,86 +66,9 @@
             </table>
         </div>
 
-        <div class="mt-3">
-            {{ $reports->links() }}
+        <div class="mt-4 d-flex justify-content-start">
+            {{ $reports->appends(request()->query())->links('pagination::bootstrap-5') }}
         </div>
     </div>
 @endsection
 
-@push('scripts')
-<script>
-(function($) {
-    "use strict";
-
-    // ── Restore ───────────────────────────────────────────────────
-    $(document).on('click', '.ajax-restore', function () {
-        const $btn = $(this);
-        const id   = $btn.data('id');
-        const url  = $btn.data('url');
-
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i>');
-
-        $.ajax({
-            url:    url,
-            method: 'POST',
-            success: function (res) {
-                removeArchiveRow(id, res.message, 'success');
-            },
-            error: function () {
-                showToast('Failed to restore report.', 'error');
-                $btn.prop('disabled', false).html('<i class="fa fa-undo me-1"></i> Restore');
-            }
-        });
-    });
-
-    // ── Permanently delete ────────────────────────────────────────
-    $(document).on('click', '.ajax-force-delete', function () {
-        const $btn = $(this);
-        const id   = $btn.data('id');
-        const url  = $btn.data('url');
-
-        if (!confirm('Permanently delete this report? This cannot be undone.')) return;
-
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i>');
-
-        $.ajax({
-            url:    url,
-            method: 'DELETE',
-            success: function (res) {
-                removeArchiveRow(id, res.message, 'success');
-            },
-            error: function () {
-                showToast('Failed to delete report.', 'error');
-                $btn.prop('disabled', false).html('<i class="fa fa-trash me-1"></i> Delete');
-            }
-        });
-    });
-
-    function removeArchiveRow(id, message, type) {
-        const $row = $('#archive-row-' + id);
-
-        $row.css({
-            transition: 'opacity 0.3s ease, transform 0.3s ease',
-            opacity: 0,
-            transform: 'translateX(20px)'
-        });
-
-        setTimeout(function () {
-            $row.remove();
-            showToast(message, type);
-
-            if ($('#archive-table tbody tr').length === 0) {
-                $('#archive-table tbody').append(`
-                    <tr id="empty-row">
-                        <td colspan="7" class="text-center text-muted py-4">
-                            <i class="fa fa-archive me-2"></i> No archived reports found.
-                        </td>
-                    </tr>
-                `);
-            }
-        }, 320);
-    }
-
-})(jQuery);
-</script>
-@endpush

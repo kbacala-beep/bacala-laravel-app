@@ -104,13 +104,16 @@ class NotificationController extends Controller
      */
     public function preferences()
     {
-        $prefs = Auth::user()->notificationPreference ?? Auth::user()->notificationPreference()->create([
-            'report_created' => true,
-            'report_status_changed' => true,
-            'user_suspended' => true,
-            'user_activated' => true,
-            'role_changed' => true,
-        ]);
+        $prefs = Auth::user()->notificationPreference()->updateOrCreate(
+            ['user_id' => Auth::id()],
+            [
+                'report_created' => true,
+                'report_status_changed' => true,
+                'user_suspended' => true,
+                'user_activated' => true,
+                'role_changed' => true,
+            ]
+        );
 
         return view('notifications.preferences', compact('prefs'));
     }

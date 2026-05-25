@@ -35,7 +35,7 @@
                 <div style="font-weight:600; color:var(--text-primary); font-size:0.95rem;">{{ $user->name }}</div>
                 <div style="color:var(--text-muted); font-size:0.82rem; margin-top:3px;">{{ $user->email }}</div>
                 <div class="mt-3">
-                    @php $roleName = is_object($user->role) ? $user->role->name : ($user->role ?? 'Resident'); @endphp
+                    @php $roleName = $user->role_relation->name ?? 'Resident'; @endphp
                     <span style="display:inline-flex; align-items:center; gap:5px;
                                  background:rgba(198,40,40,0.1); border:1px solid rgba(198,40,40,0.3);
                                  border-radius:20px; padding:3px 12px; font-size:0.78rem; color:var(--primary-hover);">
@@ -88,25 +88,6 @@
                                 @error('email')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="role_id" class="form-label">Role</label>
-                                <select name="role_id" id="role_id"
-                                        class="form-select @error('role_id') is-invalid @enderror" required>
-                                    @foreach($roles as $role)
-                                        <option value="{{ $role->id }}"
-                                            {{ old('role_id', $user->role_id) == $role->id ? 'selected' : '' }}>
-                                            {{ $role->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('role_id')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                                <div class="form-text" style="color:var(--text-muted); font-size:0.78rem;">
-                                    Changing role to Admin will prevent this user from submitting reports.
-                                </div>
                             </div>
                         </div>
 

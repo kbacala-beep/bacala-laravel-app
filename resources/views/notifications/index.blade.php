@@ -19,7 +19,7 @@
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush">
                             @foreach($notifications as $notif)
-                                <div class="list-group-item" style="border-bottom: 1px solid var(--border); padding: 16px 20px; @if(!$notif->read)background: rgba(198,40,40,0.05);@endif">
+                                <div class="list-group-item" style="border-bottom: 1px solid var(--border); padding: 16px 20px; background: var(--surface-02); @if(!$notif->read) background: rgba(198,40,40,0.05); @endif">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h5 style="color: var(--text-primary); font-weight: 600; margin: 0; flex: 1;">
                                             @if(!$notif->read)
@@ -54,8 +54,8 @@
                 </div>
 
                 @if($notifications->hasPages())
-                    <div class="mt-4">
-                        {{ $notifications->links() }}
+                    <div class="mt-4 d-flex justify-content-start">
+                        {{ $notifications->appends(request()->query())->links('pagination::bootstrap-5') }}
                     </div>
                 @endif
             </div>
@@ -97,7 +97,7 @@
             </div>
             <h5 style="color: var(--text-primary); margin-bottom: 8px;">No Notifications</h5>
             <p style="color: var(--text-muted); margin-bottom: 24px;">You're all caught up! Check back later for updates.</p>
-            <a href="{{ route('dashboard') }}" class="btn btn-primary btn-sm">
+            <a href="{{ route('dashboard') }}" class="btn btn-primary btn-sm p-2 d-inline-block mx-auto">
                 <i class="fa fa-arrow-left me-1"></i> Back to Dashboard
             </a>
         </div>

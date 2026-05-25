@@ -7,7 +7,7 @@
         <span id="notificationCount">0</span>
     </span>
 
-    <div class="dropdown-menu dropdown-menu-end" style="background: var(--surface-02) !important; border: 1px solid var(--border); border-radius: 8px; min-width: 320px; max-width: 400px; z-index: 1050;">
+    <div class="dropdown-menu dropdown-menu-end" style="background: var(--surface-02) !important; border: 1px solid var(--border); border-radius: 8px; min-width: 320px; max-width: 400px; z-index: 1050; overflow-x: hidden;">
         <div class="dropdown-header d-flex align-items-center justify-content-between" style="border-bottom: 1px solid var(--border); padding: 12px 16px; background: var(--surface-02) !important;">
             <span style="font-weight: 600; color: var(--text-primary);">Notifications</span>
             <button type="button" id="markAllReadBtn" class="btn btn-sm btn-link" style="color: var(--primary-hover); text-decoration: none; padding: 0; font-size: 0.8rem;">
@@ -15,7 +15,7 @@
             </button>
         </div>
 
-        <div id="notificationList" style="max-height: 400px; overflow-y: auto; background: var(--surface-02) !important;">
+        <div id="notificationList" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; background: var(--surface-02) !important;">
             <!-- Notifications will be loaded here via AJAX -->
             <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
                 <i class="fa fa-inbox" style="margin-right: 8px;"></i> No new notifications
@@ -60,9 +60,9 @@
                 let html = '';
                 res.notifications.forEach(notif => {
                     html += `
-                        <a href="#" class="dropdown-item notification-item" data-id="${notif.id}" style="border-bottom: 1px solid var(--border); padding: 12px 16px; display: block; text-decoration: none; color: var(--text-primary); transition: background 0.2s;">
-                            <div style="font-size: 0.9rem; font-weight: 500; margin-bottom: 4px;">${notif.title}</div>
-                            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">${notif.message}</div>
+                        <a href="#" class="dropdown-item notification-item" data-id="${notif.id}" style="border-bottom: 1px solid var(--border); padding: 12px 16px; display: block; text-decoration: none; color: var(--text-primary); transition: background 0.2s; word-wrap: break-word; overflow-wrap: break-word;">
+                            <div style="font-size: 0.9rem; font-weight: 500; margin-bottom: 4px; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;">${notif.title}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;">${notif.message}</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">${notif.created_at}</div>
                         </a>
                     `;

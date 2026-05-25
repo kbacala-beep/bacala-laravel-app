@@ -77,7 +77,6 @@
             @endif
         </div>
     </form>
-
     {{-- Admins --}}
     <div class="mb-4">
         <div class="d-flex align-items-center gap-2 mb-2">
@@ -90,7 +89,7 @@
         <div class="table-responsive">
             <table class="table table-bordered table-hover align-middle" style="border-color:rgba(198,40,40,0.2);">
                 <thead style="background:rgba(198,40,40,0.08);">
-                    <tr><th>#</th><th>User</th><th>Email</th><th>Reports</th><th>Joined</th></tr>
+                    <tr><th>#</th><th>User</th><th>Email</th><th>Reports</th><th>Joined</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                     @forelse($admins as $i => $user)
@@ -106,9 +105,14 @@
                             <td style="font-size:0.85rem; color:var(--text-secondary);">{{ $user->email }}</td>
                             <td style="font-size:0.85rem; color:var(--text-secondary);">{{ $user->reports_count }}</td>
                             <td style="font-size:0.82rem; color:var(--text-muted);">{{ $user->created_at->format('M d, Y') }}</td>
+                            <td>
+                                <a href="{{ route('users.show', $user->id) }}" class="btn btn-info btn-sm">
+                                    <i class="fa fa-eye me-1"></i> View
+                                </a>
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="text-center py-4" style="color:var(--text-muted); font-size:0.85rem;">
+                        <tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted); font-size:0.85rem;">
                             <i class="fa fa-shield-alt me-2"></i>{{ request('search') ? 'No admins match your search.' : 'No other admins found.' }}
                         </td></tr>
                     @endforelse
@@ -116,7 +120,7 @@
             </table>
         </div>
         @if($admins->hasPages())
-            <div class="mt-2">{{ $admins->appends(request()->query())->links() }}</div>
+            <div class="mt-4 d-flex justify-content-start">{{ $admins->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
         @endif
     </div>
 
@@ -169,21 +173,6 @@
                                 <a href="{{ route('users.show', $user->id) }}" class="btn btn-info btn-sm">
                                     <i class="fa fa-eye me-1"></i> View
                                 </a>
-                                @if($user->is_suspended)
-                                    <button type="button" class="btn btn-success btn-sm btn-activate"
-                                            data-id="{{ $user->id }}"
-                                            data-name="{{ $user->name }}"
-                                            data-url="{{ route('users.activate', $user->id) }}">
-                                        <i class="fa fa-user-check me-1"></i> Activate
-                                    </button>
-                                @else
-                                    <button type="button" class="btn btn-danger btn-sm btn-suspend"
-                                            data-id="{{ $user->id }}"
-                                            data-name="{{ $user->name }}"
-                                            data-url="{{ route('users.suspend', $user->id) }}">
-                                        <i class="fa fa-ban me-1"></i> Suspend
-                                    </button>
-                                @endif
                             </td>
                         </tr>
                     @empty
@@ -195,7 +184,7 @@
             </table>
         </div>
         @if($residents->hasPages())
-            <div class="mt-2">{{ $residents->appends(request()->query())->links() }}</div>
+            <div class="mt-4 d-flex justify-content-start">{{ $residents->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
         @endif
     </div>
 </div>

@@ -165,7 +165,10 @@
         @endforelse
     </div>
 
-    <div class="mt-4">{{ $logs->links() }}</div>
+    <div class="mt-4 d-flex justify-content-start">
+    {{ $logs->links('pagination::bootstrap-5') }}
+</div>
+
 </div>
 @endsection
 

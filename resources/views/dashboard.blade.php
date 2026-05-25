@@ -6,8 +6,7 @@
 <div class="container-fluid pt-4 px-4 pb-5">
 
     @php
-        $role     = Auth::user()->role;
-        $isAdmin  = strtolower(is_object($role) ? $role->name : ($role ?? 'resident')) === 'admin';
+        $isAdmin = Auth::user()->isAdmin();
     @endphp
 
     @if($isAdmin)

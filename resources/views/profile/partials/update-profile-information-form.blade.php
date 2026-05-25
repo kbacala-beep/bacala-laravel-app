@@ -59,6 +59,29 @@
             <x-input-error class="mt-2" :messages="$errors->get('address')" />
         </div>
 
+        {{-- Added Barangay Field --}}
+        <div>
+            <x-input-label for="barangay_id" :value="__('Barangay')" />
+            <select id="barangay_id" name="barangay_id" 
+                class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                {{ !auth()->user()->isAdmin() ? 'disabled' : '' }}>
+                <option value="" disabled>{{ __('Select Barangay') }}</option>
+                @foreach(\App\Models\Barangay::all() as $barangay)
+                    <option value="{{ $barangay->id }}" {{ old('barangay_id', $user->barangay_id) == $barangay->id ? 'selected' : '' }}>
+                        {{ $barangay->name }}
+                    </option>
+                @endforeach
+            </select>
+            
+            @if(!auth()->user()->isAdmin())
+                <input type="hidden" name="barangay_id" value="{{ $user->barangay_id }}">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ __('Contact an administrator to change your registered barangay.') }}
+                </p>
+            @endif
+            <x-input-error class="mt-2" :messages="$errors->get('barangay_id')" />
+        </div>
+
         <div class="flex items-center gap-4">
             <x-primary-button>{{ __('Save') }}</x-primary-button>
 

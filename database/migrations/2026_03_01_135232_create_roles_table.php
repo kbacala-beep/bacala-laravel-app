@@ -15,11 +15,6 @@ return new class extends Migration {
             $table->string('name')->unique(); // Admin, Resident, etc.
             $table->timestamps();
         });
-
-        Schema::table('users', function (Blueprint $table) {
-            $table->unsignedBigInteger('role_id')->nullable()->after('name');
-            $table->foreign('role_id')->references('id')->on('roles')->onDelete('set null');
-        });
     }
     /**
      * Reverse the migrations.

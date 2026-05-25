@@ -17,6 +17,22 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            
+            // --- Custom BrgyCIRS Columns Start ---
+            // role_id must exist for the profile_photo migration to reference it
+            $table->unsignedBigInteger('role_id')->nullable(); 
+            $table->string('role')->default('resident'); 
+            $table->unsignedBigInteger('barangay_id')->nullable();
+            $table->string('profile_photo')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('address', 500)->nullable();
+            
+            // Suspension logic
+            $table->boolean('is_suspended')->default(false);
+            $table->timestamp('suspended_at')->nullable();
+            $table->text('suspension_reason')->nullable();
+            // --- Custom BrgyCIRS Columns End ---
+
             $table->rememberToken();
             $table->timestamps();
         });

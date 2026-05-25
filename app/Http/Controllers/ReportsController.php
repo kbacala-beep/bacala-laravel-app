@@ -6,6 +6,7 @@ use App\Models\Report;
 use App\Models\Attachment;
 use App\Models\ActivityLog;
 use App\Models\Category;
+use App\Models\Scopes\BarangayScope;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,18 +16,17 @@ class ReportsController extends Controller
 {
     private function roleName(): string
     {
-        $role = Auth::user()->role;
-        return strtolower(is_object($role) ? $role->name : ($role ?? 'resident'));
+        return strtolower(Auth::user()->role_relation->name ?? 'resident');
     }
 
     private function isAdmin(): bool
     {
-        return $this->roleName() === 'admin';
+        return Auth::user()->isAdmin();
     }
 
     /*
     |--------------------------------------------------------------------------
-    | index — with search, status filter, and category filter
+    | index
     |--------------------------------------------------------------------------
     */
     public function index(Request $request)
@@ -34,7 +34,6 @@ class ReportsController extends Controller
         try {
             $categories = Category::orderBy('name')->get();
 
-            // Build a reusable filter closure
             $applyFilters = function ($query) use ($request) {
                 if ($search = $request->input('search')) {
                     $query->where(function ($q) use ($search) {
@@ -53,22 +52,17 @@ class ReportsController extends Controller
             };
 
             if ($this->isAdmin()) {
-                // Admin: single flat list of all reports
                 $query   = Report::with(['user', 'attachments', 'category'])->latest();
                 $reports = $applyFilters($query)->paginate(10)->withQueryString();
-
                 return view('reports.index', compact('reports', 'categories'));
             }
 
-            // Resident: split into own reports (pinned) and others
             $userId = Auth::id();
 
             $myQuery    = Report::with(['user', 'attachments', 'category'])
-                                ->where('user_id', $userId)
-                                ->latest();
+                                ->where('user_id', $userId)->latest();
             $otherQuery = Report::with(['user', 'attachments', 'category'])
-                                ->where('user_id', '!=', $userId)
-                                ->latest();
+                                ->where('user_id', '!=', $userId)->latest();
 
             $myReports    = $applyFilters($myQuery)->paginate(10, ['*'], 'my_page')->withQueryString();
             $otherReports = $applyFilters($otherQuery)->paginate(10, ['*'], 'other_page')->withQueryString();
@@ -93,7 +87,6 @@ class ReportsController extends Controller
     public function create()
     {
         if ($this->isAdmin()) abort(403, 'Admins cannot submit reports.');
-
         $categories = Category::orderBy('name')->get();
         return view('reports.create', compact('categories'));
     }
@@ -140,18 +133,14 @@ class ReportsController extends Controller
                 "Report #{$report->id} \"{$report->subject}\" submitted by " . Auth::user()->name
             );
 
-            // Send notification to the report creator
             NotificationService::reportCreated(Auth::user(), $report->subject);
-
             Log::info('Report created', ['report_id' => $report->id, 'user_id' => Auth::id()]);
 
             return redirect()->route('reports.index')
-                             ->with('success', 'Report submitted successfully!');
+                             ->with('success', 'Incident report submitted successfully to your Barangay officials.');
 
         } catch (\Throwable $e) {
-            Log::error('ReportsController@store failed', [
-                'user_id' => Auth::id(), 'error' => $e->getMessage(),
-            ]);
+            Log::error('ReportsController@store failed', ['user_id' => Auth::id(), 'error' => $e->getMessage()]);
             return back()->with('error', 'Failed to submit report. Please try again.')->withInput();
         }
     }
@@ -182,7 +171,6 @@ class ReportsController extends Controller
         if (!$this->isAdmin() && $report->user_id !== Auth::id()) {
             abort(403, 'You can only edit your own reports.');
         }
-
         $categories = Category::orderBy('name')->get();
         return view('reports.edit', compact('report', 'categories'));
     }
@@ -207,14 +195,13 @@ class ReportsController extends Controller
                 ]);
 
                 $oldStatus = $report->status;
-                $report->update($request->only(['resident_name', 'status']));
+                $report->update($request->only(['status']));
 
                 ActivityLog::record('status_updated', $report,
                     "Report #{$report->id} status changed from \"{$oldStatus}\" to \"{$report->status}\" by " . Auth::user()->name,
                     ['old_status' => $oldStatus, 'new_status' => $report->status]
                 );
 
-                // Send notification to report creator about status change
                 $reportUser = $report->user;
                 if ($reportUser) {
                     NotificationService::reportStatusChanged($reportUser, $report->subject, $oldStatus, $report->status);
@@ -239,11 +226,10 @@ class ReportsController extends Controller
                     'category_id'   => 'nullable|exists:categories,id',
                     'subject'       => 'required|string|max:255',
                     'description'   => 'required|string',
-                    'status'        => 'required|in:Pending,In Progress,Resolved',
                 ]);
 
                 $report->update($request->only([
-                    'resident_name', 'category_id', 'subject', 'description', 'status'
+                    'resident_name', 'category_id', 'subject', 'description'
                 ]));
 
                 ActivityLog::record('report_updated', $report,
@@ -255,7 +241,6 @@ class ReportsController extends Controller
 
         } catch (\Throwable $e) {
             Log::error('ReportsController@update failed', ['report_id' => $report->id, 'error' => $e->getMessage()]);
-
             if ($request->ajax()) return response()->json(['error' => 'Failed to update. Please try again.'], 500);
             return back()->with('error', 'Failed to update report. Please try again.')->withInput();
         }
@@ -274,7 +259,8 @@ class ReportsController extends Controller
         }
 
         try {
-            $reportId = $report->id; $reportSubject = $report->subject;
+            $reportId = $report->id;
+            $reportSubject = $report->subject;
             $report->delete();
 
             ActivityLog::record('report_archived', $report,
@@ -295,7 +281,7 @@ class ReportsController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | archive
+    | archive — withoutGlobalScope so ALL barangay archives are visible
     |--------------------------------------------------------------------------
     */
     public function archive()
@@ -303,7 +289,12 @@ class ReportsController extends Controller
         if (!$this->isAdmin()) abort(403, 'Admins only.');
 
         try {
-            $reports = Report::onlyTrashed()->with(['user', 'category'])->latest('deleted_at')->paginate(10);
+            $reports = Report::withoutGlobalScope(BarangayScope::class)
+                             ->onlyTrashed()
+                             ->with(['user', 'category'])
+                             ->latest('deleted_at')
+                             ->paginate(10);
+
             return view('reports.archive', compact('reports'));
         } catch (\Throwable $e) {
             Log::error('ReportsController@archive failed', ['error' => $e->getMessage()]);
@@ -313,7 +304,7 @@ class ReportsController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | restore
+    | restore — withoutGlobalScope to find any trashed report by ID
     |--------------------------------------------------------------------------
     */
     public function restore(Request $request, $id)
@@ -324,7 +315,9 @@ class ReportsController extends Controller
         }
 
         try {
-            $report = Report::onlyTrashed()->findOrFail($id);
+            $report = Report::withoutGlobalScope(BarangayScope::class)
+                            ->onlyTrashed()
+                            ->findOrFail($id);
             $report->restore();
 
             ActivityLog::record('report_restored', $report,
@@ -343,7 +336,7 @@ class ReportsController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | forceDelete
+    | forceDelete — withoutGlobalScope to find any trashed report by ID
     |--------------------------------------------------------------------------
     */
     public function forceDelete(Request $request, $id)
@@ -354,22 +347,18 @@ class ReportsController extends Controller
         }
 
         try {
-            $report = Report::onlyTrashed()->findOrFail($id);
-            $reportId = $report->id; $reportSubject = $report->subject;
+            $report = Report::withoutGlobalScope(BarangayScope::class)
+                            ->onlyTrashed()
+                            ->findOrFail($id);
 
-            foreach ($report->attachments as $attachment) {
-                \Storage::disk('public')->delete($attachment->file_path);
-                $attachment->delete();
-            }
+            $reportId      = $report->id;
+            $reportSubject = $report->subject;
 
-            $report->forceDelete();
+            ActivityLog::record('report_permanently_deleted', $report,
+                "Report #{$reportId} \"{$reportSubject}\" permanently deleted by " . Auth::user()->name
+            );
 
-            ActivityLog::create([
-                'user_id' => Auth::id(), 'action' => 'report_permanently_deleted',
-                'entity_type' => 'Report', 'entity_id' => $reportId,
-                'description' => "Report #{$reportId} \"{$reportSubject}\" permanently deleted by " . Auth::user()->name,
-                'ip_address' => $request->ip(),
-            ]);
+            $report->forceDelete(); // booted() listener cleans up attachments
 
             Log::warning('Report permanently deleted', ['report_id' => $reportId, 'admin_id' => Auth::id()]);
 
@@ -395,17 +384,12 @@ class ReportsController extends Controller
         try {
             $query = ActivityLog::with('user')->latest();
 
-            // Filter by action type
             if ($action = $request->input('action')) {
                 $query->where('action', $action);
             }
-
-            // Filter by user
             if ($userId = $request->input('user_id')) {
                 $query->where('user_id', $userId);
             }
-
-            // Filter by date range
             if ($from = $request->input('from')) {
                 $query->whereDate('created_at', '>=', $from);
             }

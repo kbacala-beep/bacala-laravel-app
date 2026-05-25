@@ -7,9 +7,7 @@
     <h2 class="mb-4">Barangay Reports</h2>
 
     @php
-        $role        = Auth::user()->role;
-        $currentRole = strtolower(is_object($role) ? $role->name : ($role ?? 'resident'));
-        $isAdmin     = $currentRole === 'admin';
+        $isAdmin = Auth::user()->isAdmin();
     @endphp
 
     @if(!$isAdmin)
@@ -166,7 +164,7 @@
                         <td>
                             {{ $report->user->name ?? 'N/A' }}
                             <small class="text-muted">
-                                ({{ is_object($report->user->role ?? null) ? $report->user->role->name : ($report->user->role ?? 'Resident') }})
+                                ({{ $report->user->role_relation->name ?? 'Resident' }})
                             </small>
                         </td>
                         <td>
@@ -182,11 +180,6 @@
                             <a href="{{ route('reports.show', $report->id) }}" class="btn btn-info btn-sm">
                                 <i class="fa fa-eye me-1"></i> View
                             </a>
-                            <button type="button" class="btn btn-danger btn-sm ajax-archive"
-                                    data-id="{{ $report->id }}"
-                                    data-url="{{ route('reports.destroy', $report->id) }}">
-                                <i class="fa fa-archive me-1"></i> Archive
-                            </button>
                         </td>
                     </tr>
                 @empty
@@ -200,7 +193,7 @@
             </tbody>
         </table>
     </div>
-    <div class="mt-3">{{ $reports->links() }}</div>
+    <div class="mt-4 d-flex justify-content-start">{{ $reports->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
 
     @else
     {{-- ══ RESIDENT: My Reports + Other Reports ═══════════════════ --}}
@@ -274,7 +267,7 @@
             </table>
         </div>
         @if($myReports->hasPages())
-            <div class="mt-2">{{ $myReports->appends(request()->query())->links() }}</div>
+            <div class="mt-4 d-flex justify-content-start">{{ $myReports->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
         @endif
     </div>
 
@@ -313,7 +306,7 @@
                             <td>
                                 {{ $report->user->name ?? 'N/A' }}
                                 <small class="text-muted">
-                                    ({{ is_object($report->user->role ?? null) ? $report->user->role->name : ($report->user->role ?? 'Resident') }})
+                                    ({{ $report->user->role_relation->name ?? 'Resident' }})
                                 </small>
                             </td>
                             <td>
@@ -343,7 +336,7 @@
             </table>
         </div>
         @if($otherReports->hasPages())
-            <div class="mt-2">{{ $otherReports->appends(request()->query())->links() }}</div>
+            <div class="mt-4 d-flex justify-content-start">{{ $otherReports->appends(request()->query())->links('pagination::bootstrap-5') }}</div>
         @endif
     </div>
     @endif

@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Role;
 use App\Models\Report;
+use App\Models\Barangay;
 
 class User extends Authenticatable
 {
@@ -17,6 +18,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role_id',
+        'role',              // Added: to support the 'resident' string field
+        'barangay_id',       // Added: to link user to their barangay
         'profile_photo',
         'phone',
         'address',
@@ -34,15 +37,26 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'is_suspended'      => 'boolean',
-            'suspended_at'      => 'datetime',
+            'password' => 'hashed',
+            'is_suspended' => 'boolean',
+            'suspended_at' => 'datetime',
         ];
     }
 
-    public function role()
+    /**
+     * Role relationship with a default fallback.
+     */
+    public function role_relation()
     {
-        return $this->belongsTo(Role::class);
+        // Renamed to avoid conflict with the 'role' string column
+        return $this->belongsTo(Role::class, 'role_id')->withDefault([
+            'name' => 'Resident',
+        ]);
+    }
+
+    public function barangay()
+    {
+        return $this->belongsTo(Barangay::class);
     }
 
     public function reports()
@@ -63,5 +77,10 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return (bool) $this->is_suspended;
+    }
+
+    public function isAdmin(): bool
+    {
+        return strtolower($this->role_relation->name ?? 'resident') === 'admin';
     }
 }
